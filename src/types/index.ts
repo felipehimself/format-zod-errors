@@ -1,0 +1,3 @@
+type TFormatOptions = {
+  verbose?: boolean;
+};
