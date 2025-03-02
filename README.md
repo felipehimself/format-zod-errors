@@ -1,8 +1,8 @@
 <p align="center"> <h1 align="center">format-zod-errors</h1></p>
 
 <p align="center">
-<a href="https://twitter.com/colinhacks" rel="nofollow"><img src="https://img.shields.io/badge/created%20by-@felipehimself-4BBAAB.svg" alt="Created by Colin McDonnell"></a>
-<a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/colinhacks/zod" alt="License"></a>
+<a href="https://github.com/felipehimself" rel="nofollow"><img src="https://img.shields.io/badge/created%20by-@felipehimself-4BBAAB.svg" alt="Created by felipehimself"></a>
+<a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/felipehimself/format-zod-errors" alt="License"></a>
 </p>
 
 A light weight utility for formatting validation errors from [Zod](https://github.com/colinhacks/zod) schemas, returning an object with easy-to-access error messages for each field.
@@ -21,93 +21,94 @@ yarn add format-zod-errors
 
 ## Usage
 
-### Create your schema
+### Using safeParse
 
 ```
 import { z } from "zod";
-
-const personSchema = z.object({
-  id: z.string().optional(),
-  name: z
-    .string({
-      errorMap: () => {
-        return { message: "Name must be 1 to 5 characters long" };
-      },
-    })
-    .min(1)
-    .max(5),
-  age: z
-    .number({ message: "Age is required" })
-    .min(18, { message: "You must be 18 y.o to create an account" }),
-  email: z
-    .string({ message: "Email is required" })
-    .email({ message: "Invalid email" }),
-});
-
-
-
-```
-
-### Get the errors
-
-```
 import { f } from "format-zod-errors";
 
-const mockPersonValues = {
+const personSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  age: z.number().min(18),
+  name: z.string().min(1).max(20),
+  lastName: z.string().min(1).max(20),
+});
+
+const personData: z.infer<typeof personSchema> = {
   id: "1",
-  email: "invalidemail@",
+  email: "jane@email.com",
   age: 15,
-  name: "my name has more than 5 characters",
+  name: "Jane",
+  lastName: "Doe",
 };
 
-const { error } = personSchema.safeParse(mockPersonValues);
+
+const { error } = personSchema.safeParse(personData);
 
 if (error) {
   const errorsMessages = f(error);
-  console.log(errorsMessages);
 
   // output
-  // {
-  //  "name": "Name must be 1 to 5 characters long",
-  //  "age": "You must be 18 y.o to create an account",
-  //  "email": "Invalid email"
-  // }
-
- return;
+   {
+    age: 'Number must be greater than or equal to 18'
+   }
 }
 
+```
 
-// Or if you want more details just pass the options argument
+### Or using parse
 
-if (error) {
-  const errorsMessages = f(error, { verbose: true });
-  console.log(errorsMessages);
+```
+import { z } from "zod";
+import { f } from "format-zod-errors";
 
-  // output
-  // {
-  //    "name": {
-  //        "message": "Name must be 1 to 5 characters long",
-  //        "code": "too_big",
-  //        "maximum": 5,
-  //        "type": "string",
-  //        "inclusive": true,
-  //        "exact": false
-  //    },
-  //    "age": {
-  //        "message": "You must be 18 y.o to create an account",
-  //        "code": "too_small",
-  //        "minimum": 18,
-  //        "type": "number",
-  //        "inclusive": true,
-  //        "exact": false
-  //    },
-  //    "email": {
-  //        "message": "Invalid email",
-  //        "validation": "email",
-  //        "code": "invalid_string"
-  //    }
-  //  }
+const userSchema = z.object({
+  name: z.string().min(1),
+  lastName: z.string().min(1),
+  address: z.object({
+    street: z.string(),
 
- return;
-}
+    city: z.string(),
+    state: z.string(),
+    country: z.object({
+      name: z.string(),
+      code: z.number(),
+    }),
+  }),
+});
+
+const userData = {
+  name: "John",
+  lastName: 1,
+  address: {
+    street: "123 Main St",
+    city: 123,
+    country: { name: 5, code: "21" },
+  },
+};
+
+ try {
+      const data = userSchema.parse(userData);
+      // it will throw an error
+
+    } catch (error) {
+
+      if (error instanceof z.ZodError) {
+        const formattedErrors = f(error);
+
+        // output
+        {
+          "lastName": "Expected string, received number",
+          "address": {
+              "city": "Expected string, received number",
+              "state": "Required",
+              "country": {
+                "name": "Expected string, received number",
+                "code": "Expected number, received string"
+            }
+          }
+        }
+      }
+    }
 ```
